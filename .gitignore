@@ -1,0 +1,6 @@
+mapfile
+*.hex
+*.bin
+*.pyc
+*.o
+*.elf
