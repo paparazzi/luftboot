@@ -1,0 +1,7 @@
+This software is part of the Paparazzi UAV Project.
+
+Luftboot is the bootloader for stm32 based autopilots to enable upgrading the
+autopilot firmware using usb. It implements the dfu standard.
+
+Luftboot is based on the usbdfu bootloader implementation by Gareth McMullin
+for the Black Magic Probe project (http://www.blacksphere.co.nz/main/blackmagic).
