@@ -240,6 +240,8 @@ int main(void)
 {
 	/* Enable clock for the "force bootloader" pin bank and check for it */
 	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
+	gpio_set_mode(GPIOC, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO0);
+	gpio_clear(GPIOC, GPIO0);
 	if(gpio_get(GPIOC, GPIO0)) {
 		/* Boot the application if it's valid */
 		if((*(volatile u32*)APP_ADDRESS & 0x2FFE0000) == 0x20000000) {
@@ -256,23 +258,17 @@ int main(void)
 
 	rcc_clock_setup_in_hse_12mhz_out_72mhz();
 
-	rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USBEN);
-	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
-
-	gpio_set_mode(GPIOA, GPIO_MODE_INPUT, 0, GPIO8);
-
 	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ, 
 			GPIO_CNF_OUTPUT_PUSHPULL, GPIO5);
 	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ, 
 			GPIO_CNF_OUTPUT_PUSHPULL, GPIO2);
 	gpio_toggle(GPIOC, GPIO2); /* LED2 on/off */
+	
 	systick_set_clocksource(STK_CTRL_CLKSOURCE_AHB_DIV8); 
 	systick_set_reload(900000);
 	systick_interrupt_enable();
 	systick_counter_enable();
-	gpio_set_mode(GPIOB, GPIO_MODE_INPUT, 
-			GPIO_CNF_INPUT_FLOAT, GPIO2 | GPIO10);
-
+	
 	get_dev_unique_id(serial_no);
 
 	usbd_init(&stm32f107_usb_driver, &dev, &config, usb_strings);
@@ -281,10 +277,6 @@ int main(void)
 				USB_REQ_TYPE_CLASS | USB_REQ_TYPE_INTERFACE,
 				USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
 				usbdfu_control_request);
-
-	gpio_set(GPIOA, GPIO8);
-	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ, 
-			GPIO_CNF_OUTPUT_PUSHPULL, GPIO8);
 
 	while (1) 
 		usbd_poll();
@@ -309,7 +301,7 @@ static char *get_dev_unique_id(char *s)
 
 void sys_tick_handler()
 {
-	gpio_toggle(GPIOC, GPIO2); /* LED2 on/off */
+	gpio_toggle(GPIOC, GPIO2); /* LED1 on/off */
 	gpio_toggle(GPIOC, GPIO5); /* LED2 on/off */
 }
 
