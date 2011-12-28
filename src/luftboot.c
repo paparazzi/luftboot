@@ -28,13 +28,14 @@
 #include <libopencm3/usb/dfu.h>
 
 #define APP_ADDRESS	0x08002000
+#define SECTOR_SIZE	2048
 
 /* Commands sent with wBlockNum == 0 as per ST implementation. */
 #define CMD_SETADDR	0x21 
 #define CMD_ERASE	0x41 
 
 /* We need a special large control buffer for this device: */
-u8 usbd_control_buffer[1024];
+u8 usbd_control_buffer[SECTOR_SIZE];
 
 static enum dfu_state usbdfu_state = STATE_DFU_IDLE;
 
@@ -69,7 +70,7 @@ const struct usb_dfu_descriptor dfu_function = {
 	.bDescriptorType = DFU_FUNCTIONAL,
 	.bmAttributes = USB_DFU_CAN_DOWNLOAD | USB_DFU_WILL_DETACH,
 	.wDetachTimeout = 255,
-	.wTransferSize = 1024,
+	.wTransferSize = SECTOR_SIZE,
 	.bcdDFUVersion = 0x011A,
 };
 
@@ -117,7 +118,7 @@ static const char *usb_strings[] = {
 	"Lisa/M (Upgrade)",
 	serial_no,
 	/* This string is used by ST Microelectronics' DfuSe utility */
-	"@Internal Flash   /0x08000000/8*001Ka,120*001Kg"
+	"@Internal Flash   /0x08000000/4*002Ka,124*002Kg"
 };
 
 static u8 usbdfu_getstatus(u32 *bwPollTimeout)

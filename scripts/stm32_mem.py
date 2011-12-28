@@ -24,6 +24,9 @@ from sys import stdout, argv
 import usb
 import dfu
 
+APP_ADDRESS = 0x08002000
+SECTOR_SIZE = 2048
+
 CMD_GETCOMMANDS =            0x00
 CMD_SETADDRESSPOINTER =      0x21
 CMD_ERASE =                  0x41
@@ -94,15 +97,15 @@ if __name__ == "__main__":
 
 	bin = open(argv[1], "rb").read()
 
-	addr = 0x8002000
+	addr = APP_ADDRESS
 	while bin:
 		print ("Programming memory at 0x%08X\r" % addr),
 		stdout.flush()
 		stm32_erase(dfudev, addr)
-		stm32_write(dfudev, bin[:1024])
+		stm32_write(dfudev, bin[:SECTOR_SIZE])
 
-		bin = bin[1024:]
-		addr += 1024
+		bin = bin[SECTOR_SIZE:]
+		addr += SECTOR_SIZE
 
 	stm32_manifest(dfudev)
 
