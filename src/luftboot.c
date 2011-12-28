@@ -242,7 +242,7 @@ int main(void)
 	/* Enable clock for the "force bootloader" pin bank and check for it */
 	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
 	gpio_set_mode(GPIOC, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO0);
-	gpio_clear(GPIOC, GPIO0);
+	gpio_set(GPIOC, GPIO0);
 	if(gpio_get(GPIOC, GPIO0)) {
 		/* Boot the application if it's valid */
 		if((*(volatile u32*)APP_ADDRESS & 0x2FFE0000) == 0x20000000) {
