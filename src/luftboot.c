@@ -2,7 +2,7 @@
  * This file is part of the Paparazzi UAV project.
  *
  * Copyright (C) 2010 Gareth McMullin <gareth@blacksphere.co.nz>
- * Copyright (C) 2011 Piotr Esden-Tempski <piotr@esden.net>
+ * Copyright (C) 2011-2012 Piotr Esden-Tempski <piotr@esden.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -114,7 +114,7 @@ static char serial_no[25];
 
 static const char *usb_strings[] = {
 	"x",
-	"Transition Robotics",
+	"Transition Robotics Inc.",
 	"Lisa/M (Upgrade)",
 	serial_no,
 	/* This string is used by ST Microelectronics' DfuSe utility */
@@ -237,6 +237,100 @@ static int usbdfu_control_request(struct usb_setup_data *req, u8 **buf,
 	return 0;
 }
 
+bool gpio_boot_check()
+{
+}
+
+static inline void gpio_init(void)
+{
+	/* Enable GPIOA, GPIOB, GPIOC, and AFIO clocks. */
+	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN |
+						  RCC_APB2ENR_IOPBEN |
+						  RCC_APB2ENR_IOPCEN |
+						  RCC_APB2ENR_AFIOEN);
+	/* LED1 */
+	/* Set GPIO8 (in GPIO port A) to 'output push-pull'. */
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, GPIO8);
+
+	/* JTAG_TRST */
+	/* Set GPIO4 (in GPIO port B) to 'output push-pull'. */
+	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, GPIO4);
+
+	AFIO_MAPR |= AFIO_MAPR_SWJ_CFG_FULL_SWJ_NO_JNTRST;
+
+	/* LED2, ADC4, ADC6 */
+	/* Set GPIO15, GPIO5, GPIO2 (in GPIO port C) to 'output push-pull'. */
+	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_50_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, GPIO15 | GPIO5 | GPIO2);
+
+	/* Preconfigure the LEDs. */
+	gpio_set(GPIOA, GPIO8);
+	gpio_set(GPIOB, GPIO4);
+	gpio_set(GPIOC, GPIO15 | GPIO5 | GPIO2);
+}
+
+void led_set(int id, int on)
+{
+	if (on) {
+		switch (id) {
+			case 0:
+				gpio_clear(GPIOA, GPIO8); /* LED1 On */
+				break;
+			case 1:
+				gpio_clear(GPIOB, GPIO4); /* JTAG_TRST On */
+				break;
+			case 2:
+				gpio_clear(GPIOC, GPIO2); /* ADC6 On */
+				break;
+			case 3:
+				gpio_clear(GPIOC, GPIO5); /* ADC4 On */
+				break;
+			case 4:
+				gpio_clear(GPIOC, GPIO15); /* LED2 On */
+				break;
+		}
+	} else {
+		switch (id) {
+			case 0:
+				gpio_set(GPIOA, GPIO8); /* LED1 On */
+				break;
+			case 1:
+				gpio_set(GPIOB, GPIO4); /* JTAG_TRST On */
+				break;
+			case 2:
+				gpio_set(GPIOC, GPIO2); /* ADC6 On */
+				break;
+			case 3:
+				gpio_set(GPIOC, GPIO5); /* ADC4 On */
+				break;
+			case 4:
+				gpio_set(GPIOC, GPIO15); /* LED2 On */
+				break;
+		}
+	}
+}
+
+static inline void led_advance(void)
+{
+        static int state = 0;
+
+        if (state < 5) {
+                led_set(state, 1);
+        } else if (state < 10) {
+                led_set(state - 5, 0);
+        } else if (state < 15) {
+                led_set(14 - state, 1);
+        } else if (state < 20) {
+                led_set(19 - state, 0);
+        }
+
+        state++;
+        if(state == 20) state = 0;
+
+}
+
 int main(void)
 {
 	/* Enable clock for the "force bootloader" pin bank and check for it */
@@ -259,11 +353,7 @@ int main(void)
 
 	rcc_clock_setup_in_hse_12mhz_out_72mhz();
 
-	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ, 
-			GPIO_CNF_OUTPUT_PUSHPULL, GPIO5);
-	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ, 
-			GPIO_CNF_OUTPUT_PUSHPULL, GPIO2);
-	gpio_toggle(GPIOC, GPIO2); /* LED2 on/off */
+	gpio_init();
 	
 	systick_set_clocksource(STK_CTRL_CLKSOURCE_AHB_DIV8); 
 	systick_set_reload(900000);
@@ -302,7 +392,6 @@ static char *get_dev_unique_id(char *s)
 
 void sys_tick_handler()
 {
-	gpio_toggle(GPIOC, GPIO2); /* LED1 on/off */
-	gpio_toggle(GPIOC, GPIO5); /* LED2 on/off */
+	led_advance();
 }
 
