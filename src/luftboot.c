@@ -353,6 +353,8 @@ int main(void)
 
 	rcc_clock_setup_in_hse_12mhz_out_72mhz();
 
+	rcc_peripheral_enable_clock(&RCC_AHBENR, RCC_AHBENR_OTGFSEN);
+
 	gpio_init();
 
 	systick_set_clocksource(STK_CTRL_CLKSOURCE_AHB_DIV8);
