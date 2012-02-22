@@ -159,11 +159,13 @@ static const struct usb_config_descriptor config = {
 	.interface = ifaces,
 };
 
+char serial[9];
+
 static const char *usb_strings[] = {
 	"x",
 	"Black Sphere Technologies",
 	"CDC-ACM Demo",
-	"DEMO",
+	serial,
 };
 
 static int cdcacm_control_request(struct usb_setup_data *req, u8 **buf,
@@ -264,6 +266,25 @@ static void cdcacm_set_config(u16 wValue)
 				cdcacm_control_request);
 }
 
+static void get_serial(char *serial_no)
+{
+	volatile uint8_t *ser_no = (volatile uint8_t *)0x08001FF0;
+	int i;
+
+	/* copy the serial number from the bootloader space */
+	for (i=0; i<8 && ser_no[i] != '\0'; i++) {
+		serial_no[i] = ser_no[i];
+	}
+
+	/* add spaces for mac os x happyness */
+	for (; i<8; i++) {
+		serial_no[i] = ' ';
+	}
+
+	serial_no[i] = '\0';
+
+}
+
 int main(void)
 {
 	int i;
@@ -279,6 +300,8 @@ int main(void)
 	gpio_set(GPIOC, GPIO5);
 	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ,
 		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO5);
+
+	get_serial(serial);
 
 	usbd_init(&stm32f107_usb_driver, &dev, &config, usb_strings);
 	usbd_register_set_config_callback(cdcacm_set_config);
