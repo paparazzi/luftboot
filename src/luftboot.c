@@ -31,8 +31,8 @@
 #define SECTOR_SIZE	2048
 
 /* Commands sent with wBlockNum == 0 as per ST implementation. */
-#define CMD_SETADDR	0x21 
-#define CMD_ERASE	0x41 
+#define CMD_SETADDR	0x21
+#define CMD_ERASE	0x41
 
 /* We need a special large control buffer for this device: */
 u8 usbd_control_buffer[SECTOR_SIZE];
@@ -49,20 +49,20 @@ static struct {
 } prog;
 
 const struct usb_device_descriptor dev = {
-        .bLength = USB_DT_DEVICE_SIZE,
-        .bDescriptorType = USB_DT_DEVICE,
-        .bcdUSB = 0x0200,
-        .bDeviceClass = 0,
-        .bDeviceSubClass = 0,
-        .bDeviceProtocol = 0,
-        .bMaxPacketSize0 = 64,
-        .idVendor = 0x0483,
-        .idProduct = 0xDF11,
-        .bcdDevice = 0x0200,
-        .iManufacturer = 1,
-        .iProduct = 2,
-        .iSerialNumber = 3,
-        .bNumConfigurations = 1,
+	.bLength = USB_DT_DEVICE_SIZE,
+	.bDescriptorType = USB_DT_DEVICE,
+	.bcdUSB = 0x0200,
+	.bDeviceClass = 0,
+	.bDeviceSubClass = 0,
+	.bDeviceProtocol = 0,
+	.bMaxPacketSize0 = 64,
+	.idVendor = 0x0483,
+	.idProduct = 0xDF11,
+	.bcdDevice = 0x0200,
+	.iManufacturer = 1,
+	.iProduct = 2,
+	.iSerialNumber = 3,
+	.bNumConfigurations = 1,
 };
 
 const struct usb_dfu_descriptor dfu_function = {
@@ -84,7 +84,7 @@ const struct usb_interface_descriptor iface = {
 	.bInterfaceSubClass = 1,
 	.bInterfaceProtocol = 2,
 
-	/* The ST Microelectronics DfuSe application needs this string. 
+	/* The ST Microelectronics DfuSe application needs this string.
 	 * The format isn't documented... */
 	.iInterface = 4,
 
@@ -125,7 +125,7 @@ static u8 usbdfu_getstatus(u32 *bwPollTimeout)
 {
 	switch(usbdfu_state) {
 	case STATE_DFU_DNLOAD_SYNC:
-		usbdfu_state = STATE_DFU_DNBUSY; 
+		usbdfu_state = STATE_DFU_DNBUSY;
 		*bwPollTimeout = 100;
 		return DFU_STATUS_OK;
 
@@ -156,17 +156,17 @@ static void usbdfu_getstatus_complete(struct usb_setup_data *req)
 				prog.addr = *(u32*)(prog.buf+1);
 			}
 		} else {
-			u32 baseaddr = prog.addr + 
-				((prog.blocknum - 2) * 
+			u32 baseaddr = prog.addr +
+				((prog.blocknum - 2) *
 					dfu_function.wTransferSize);
-			for(i = 0; i < prog.len; i += 2) 
-				flash_program_half_word(baseaddr + i, 
+			for(i = 0; i < prog.len; i += 2)
+				flash_program_half_word(baseaddr + i,
 						*(u16*)(prog.buf+i));
 		}
 		flash_lock();
 
-		/* We jump straight to dfuDNLOAD-IDLE, 
-		 * skipping dfuDNLOAD-SYNC 
+		/* We jump straight to dfuDNLOAD-IDLE,
+		 * skipping dfuDNLOAD-SYNC
 		 */
 		usbdfu_state = STATE_DFU_DNLOAD_IDLE;
 		return;
@@ -180,11 +180,11 @@ static void usbdfu_getstatus_complete(struct usb_setup_data *req)
 	}
 }
 
-static int usbdfu_control_request(struct usb_setup_data *req, u8 **buf, 
+static int usbdfu_control_request(struct usb_setup_data *req, u8 **buf,
 		u16 *len, void (**complete)(struct usb_setup_data *req))
 {
 
-	if((req->bmRequestType & 0x7F) != 0x21) 
+	if((req->bmRequestType & 0x7F) != 0x21)
 		return 0; /* Only accept class request */
 
 	switch(req->bRequest) {
@@ -314,20 +314,20 @@ void led_set(int id, int on)
 
 static inline void led_advance(void)
 {
-        static int state = 0;
+	static int state = 0;
 
-        if (state < 5) {
-                led_set(state, 1);
-        } else if (state < 10) {
-                led_set(state - 5, 0);
-        } else if (state < 15) {
-                led_set(14 - state, 1);
-        } else if (state < 20) {
-                led_set(19 - state, 0);
-        }
+	if (state < 5) {
+		led_set(state, 1);
+	} else if (state < 10) {
+		led_set(state - 5, 0);
+	} else if (state < 15) {
+		led_set(14 - state, 1);
+	} else if (state < 20) {
+		led_set(19 - state, 0);
+	}
 
-        state++;
-        if(state == 20) state = 0;
+	state++;
+	if(state == 20) state = 0;
 
 }
 
@@ -354,12 +354,12 @@ int main(void)
 	rcc_clock_setup_in_hse_12mhz_out_72mhz();
 
 	gpio_init();
-	
-	systick_set_clocksource(STK_CTRL_CLKSOURCE_AHB_DIV8); 
+
+	systick_set_clocksource(STK_CTRL_CLKSOURCE_AHB_DIV8);
 	systick_set_reload(900000);
 	systick_interrupt_enable();
 	systick_counter_enable();
-	
+
 	get_dev_unique_id(serial_no);
 
 	usbd_init(&stm32f107_usb_driver, &dev, &config, usb_strings);
@@ -369,23 +369,23 @@ int main(void)
 				USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
 				usbdfu_control_request);
 
-	while (1) 
+	while (1)
 		usbd_poll();
 }
 
-static char *get_dev_unique_id(char *s) 
+static char *get_dev_unique_id(char *s)
 {
-        volatile uint8_t *unique_id = (volatile uint8_t *)0x1FFFF7E8;
-        int i;
+	volatile uint8_t *unique_id = (volatile uint8_t *)0x1FFFF7E8;
+	int i;
 
-        /* Fetch serial number from chip's unique ID */
-        for(i = 0; i < 24; i+=2) {
-                s[i] = ((*unique_id >> 4) & 0xF) + '0';
-                s[i+1] = (*unique_id++ & 0xF) + '0';
-        }
-        for(i = 0; i < 24; i++) 
-                if(s[i] > '9') 
-                        s[i] += 'A' - '9' - 1;
+	/* Fetch serial number from chip's unique ID */
+	for(i = 0; i < 24; i+=2) {
+		s[i] = ((*unique_id >> 4) & 0xF) + '0';
+		s[i+1] = (*unique_id++ & 0xF) + '0';
+	}
+	for(i = 0; i < 24; i++)
+		if(s[i] > '9')
+			s[i] += 'A' - '9' - 1;
 
 	return s;
 }
@@ -394,4 +394,3 @@ void sys_tick_handler()
 {
 	led_advance();
 }
-
