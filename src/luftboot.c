@@ -27,6 +27,14 @@
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/dfu.h>
 
+#ifndef VERSION
+#define VERSION         ""
+#endif
+
+#ifndef DEV_SERIAL
+#define DEV_SERIAL      "NSERIAL"
+#endif
+
 #define APP_ADDRESS	0x08002000
 #define SECTOR_SIZE	2048
 
@@ -34,12 +42,14 @@
 #define CMD_SETADDR	0x21
 #define CMD_ERASE	0x41
 
+static const char dev_serial[] __attribute__ ((section (".devserial"))) = DEV_SERIAL;
+
 /* We need a special large control buffer for this device: */
 u8 usbd_control_buffer[SECTOR_SIZE];
 
 static enum dfu_state usbdfu_state = STATE_DFU_IDLE;
 
-static char *get_dev_unique_id(char *serial_no);
+inline char *get_dev_unique_id(char *serial_no);
 
 static struct {
 	u8 buf[sizeof(usbd_control_buffer)];
@@ -110,12 +120,12 @@ const struct usb_config_descriptor config = {
 	.interface = ifaces,
 };
 
-static char serial_no[25];
+static char serial_no[24+8];
 
 static const char *usb_strings[] = {
 	"x",
 	"Transition Robotics Inc.",
-	"Lisa/M (Upgrade)",
+	"Lisa/M (Upgrade) " VERSION,
 	serial_no,
 	/* This string is used by ST Microelectronics' DfuSe utility */
 	"@Internal Flash   /0x08000000/4*002Ka,124*002Kg"
@@ -375,19 +385,24 @@ int main(void)
 		usbd_poll();
 }
 
-static char *get_dev_unique_id(char *s)
+inline char *get_dev_unique_id(char *s)
 {
 	volatile uint8_t *unique_id = (volatile uint8_t *)0x1FFFF7E8;
 	int i;
 
+	for(i = 0; i < 7; i++) {
+		s[i] = dev_serial[i];
+	}
+	s[i] = ' ';
+
 	/* Fetch serial number from chip's unique ID */
 	for(i = 0; i < 24; i+=2) {
-		s[i] = ((*unique_id >> 4) & 0xF) + '0';
-		s[i+1] = (*unique_id++ & 0xF) + '0';
+		s[i+8] = ((*unique_id >> 4) & 0xF) + '0';
+		s[i+8+1] = (*unique_id++ & 0xF) + '0';
 	}
 	for(i = 0; i < 24; i++)
-		if(s[i] > '9')
-			s[i] += 'A' - '9' - 1;
+		if(s[i+8] > '9')
+			s[i+8] += 'A' - '9' - 1;
 
 	return s;
 }
