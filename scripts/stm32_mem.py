@@ -63,8 +63,9 @@ def stm32_manifest(dev):
 
 if __name__ == "__main__":
 	print
-	print "USB Device Firmware Upgrade - Host Utility -- version 1.1"
+	print "USB Device Firmware Upgrade - Host Utility -- version 1.2"
 	print "Copyright (C) 2011  Black Sphere Technologies"
+	print "Copyright (C) 2012  Transition Robotics Inc."
 	print "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>"
 	print
 
@@ -75,13 +76,19 @@ if __name__ == "__main__":
 
 	for dev in devs:
 		dfudev = dfu.dfu_device(*dev)
-		man = dfudev.handle.getString(dfudev.dev.iManufacturer, 30)
-		product = dfudev.handle.getString(dfudev.dev.iProduct, 30)
+		try:
+			man = dfudev.handle.getString(dfudev.dev.iManufacturer, 30)
+			product = dfudev.handle.getString(dfudev.dev.iProduct, 30)
+			serial = dfudev.handle.getString(dfudev.dev.iSerialNumber, 40)
+		except:
+			print "Could not access the description strings of a DFU device. Maybe the OS driver is claiming it?"
+			continue
 		if man == "Black Sphere Technologies": break
+		if man == "Transition Robotics Inc.": break
 		if man == "STMicroelectronics": break
 
-	print "Device %s: ID %04x:%04x %s - %s" % (dfudev.dev.filename, 
-		dfudev.dev.idVendor, dfudev.dev.idProduct, man, product)
+	print "Device %s: ID %04x:%04x %s - %s - %s" % (dfudev.dev.filename, 
+		dfudev.dev.idVendor, dfudev.dev.idProduct, man, product, serial)
 
 	try:
 		state = dfudev.get_state()
@@ -95,7 +102,11 @@ if __name__ == "__main__":
 	
 	dfudev.make_idle()
 
-	bin = open(argv[1], "rb").read()
+	try:
+		bin = open(argv[1], "rb").read()
+	except:
+		print "Could not open binary file."
+		raise
 
 	addr = APP_ADDRESS
 	while bin:

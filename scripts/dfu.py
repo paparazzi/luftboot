@@ -2,7 +2,9 @@
 #
 # dfu.py: Access USB DFU class devices
 # Copyright (C) 2009  Black Sphere Technologies 
+# Copyright (C) 2012  Transition Robotics Inc.
 # Written by Gareth McMullin <gareth@blacksphere.co.nz>
+# Modified by Piotr Esden-Tempski <piotr@esden.net>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -181,11 +183,18 @@ if __name__ == "__main__":
 
 	for dfu in devs:
 		handle = dfu[0].open()
-		man = handle.getString(dfu[0].iManufacturer, 30)
-		product = handle.getString(dfu[0].iProduct, 30)
-		print "Device %s: ID %04x:%04x %s - %s" % (dfu[0].filename, 
-			dfu[0].idVendor, dfu[0].idProduct, man, product)
+		try:
+			man = handle.getString(dfu[0].iManufacturer, 30)
+			product = handle.getString(dfu[0].iProduct, 30)
+			serial = handle.getString(dfu[0].iSerialNumber, 40)
+		except:
+			print "Could not access descriptions strings of a DFU device. Maybe the OS driver is claiming it?"
+			continue
+
+		print "Device %s: ID %04x:%04x %s - %s - %s" % (dfu[0].filename, 
+			dfu[0].idVendor, dfu[0].idProduct, man, product, serial)
 		print "%r, %r" % (dfu[1], dfu[2])
+	print "Finished scanning for devices."
 
 
 
