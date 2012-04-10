@@ -4,6 +4,8 @@ OBJCOPY = $(CROSS_COMPILE)objcopy
 TOOLCHAIN_DIR=$(shell dirname `which arm-none-eabi-gcc`)
 ifeq ($(TOOLCHAIN_DIR),)
 TOOLCHAIN_DIR=$(shell find -L /opt/paparazzi/arm-multilib ~/sat /opt/paparazzi/stm32 -maxdepth 1 -type d -name arm-none-eabi 2>/dev/null | head -n 1)
+CC = $(TOOLCHAIN_DIR)/../bin/$(CROSS_COMPILE)gcc
+OBJCOPY = $(TOOLCHAIN_DIR)/../bin/$(CROSS_COMPILE)objcopy
 endif
 
 LIBOPENCM3 ?= $(TOOLCHAIN_DIR)/..
@@ -16,9 +18,9 @@ VERSION = V1.0
 DEV_SERIAL = NSERIAL
 
 CFLAGS += -Os -g3 -Istm32/include -mcpu=cortex-m3 -mthumb -msoft-float -DSTM32F1 -I$(LIBOPENCM3)/include --function-sections --data-sections -DVERSION="\"$(VERSION)\"" -DDEV_SERIAL="\"$(DEV_SERIAL)\""
-LDFLAGS_BOOT = -lopencm3_stm32f1 -Wl,--defsym,_stack=0x20005000 \
+LDFLAGS_BOOT = -lopencm3_stm32 -Wl,--defsym,_stack=0x20005000 \
 	-Wl,-T,luftboot.ld -nostartfiles -lc -lnosys -Wl,-Map=mapfile \
-	-mthumb -march=armv7 -mcpu=cortex-m3 -mfix-cortex-m3-ldrd -msoft-float -L$(LIBOPENCM3)/lib/stm32/f1 -Wl,--gc-sections
+	-mthumb -march=armv7 -mcpu=cortex-m3 -mfix-cortex-m3-ldrd -msoft-float -L$(LIBOPENCM3)/lib/stm32 -Wl,--gc-sections
 LDFLAGS_BOOT += -Wl,--section-start=.devserial=0x8001FF0
 LDFLAGS = $(LDFLAGS_BOOT) -Wl,-Ttext=0x8002000
 
