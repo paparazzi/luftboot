@@ -1,10 +1,17 @@
 CROSS_COMPILE ?= arm-none-eabi-
+
+# if cross compiler is not in path, try picking it up from the paparazzi package
+HAVE_ARM_NONE_EABI_GCC := $(shell which arm-none-eabi-gcc)
+ifeq ($(strip $(HAVE_ARM_NONE_EABI_GCC)),)
+TOOLCHAIN=$(shell find -L /opt/paparazzi/arm-multilib ~/sat /opt/paparazzi/stm32 -maxdepth 1 -type d -name arm-none-eabi 2>/dev/null | head -n 1)
+TOOLCHAIN_DIR=$(shell dirname $(TOOLCHAIN))/bin
+CROSS_COMPILE=$(TOOLCHAIN_DIR)/arm-none-eabi-
+else
+TOOLCHAIN_DIR=$(shell dirname `which arm-none-eabi-gcc`)
+endif
+
 CC = $(CROSS_COMPILE)gcc
 OBJCOPY = $(CROSS_COMPILE)objcopy
-TOOLCHAIN_DIR=$(shell dirname `which arm-none-eabi-gcc`)
-ifeq ($(TOOLCHAIN_DIR),)
-TOOLCHAIN_DIR=$(shell find -L /opt/paparazzi/arm-multilib ~/sat /opt/paparazzi/stm32 -maxdepth 1 -type d -name arm-none-eabi 2>/dev/null | head -n 1)
-endif
 
 LIBOPENCM3 ?= $(TOOLCHAIN_DIR)/..
 OOCD_INTERFACE  ?= flossjtag
