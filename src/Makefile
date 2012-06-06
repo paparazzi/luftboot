@@ -57,8 +57,7 @@ flash: luftboot.hex
 		-f target/$(OOCD_TARGET).cfg \
 		-c init \
 		-c "reset init" \
-		-c "stm32f1x mass_erase 0" \
-		-c "flash write_image luftboot.hex" \
+		-c "flash write_image erase luftboot.hex" \
 		-c reset \
 		-c shutdown
 else
