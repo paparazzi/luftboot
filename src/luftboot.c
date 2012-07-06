@@ -42,6 +42,11 @@
 #define CMD_SETADDR	0x21
 #define CMD_ERASE	0x41
 
+#define FLASH_OBP_RDP 0x1FFFF800
+#define FLASH_OBP_WRP10 0x1FFFF808
+
+#define FLASH_OBP_RDP_KEY 0x5aa5
+
 static const char dev_serial[] __attribute__ ((section (".devserial"))) = DEV_SERIAL;
 
 /* We need a special large control buffer for this device: */
@@ -159,6 +164,11 @@ static void usbdfu_getstatus_complete(struct usb_setup_data *req)
 
 		flash_unlock();
 		if(prog.blocknum == 0) {
+			if ((*(u32*)(prog.buf+1) < 0x8002000) ||
+			    (*(u32*)(prog.buf+1) >= 0x8020000)) {
+				usbd_ep_stall_set(0, 1);
+				return;
+			}
 			switch(prog.buf[0]) {
 			case CMD_ERASE:
 				flash_erase_page(*(u32*)(prog.buf+1));
@@ -373,6 +383,13 @@ int main(void)
 		}
 	}
 
+	if ((FLASH_WRPR & 0x03) != 0x00) {
+		flash_unlock();
+		FLASH_CR = 0;
+		flash_erase_option_bytes();
+		flash_program_option_bytes(FLASH_OBP_RDP, FLASH_OBP_RDP_KEY);
+		flash_program_option_bytes(FLASH_OBP_WRP10, 0x03FC);
+	}
 
 	rcc_clock_setup_in_hse_12mhz_out_72mhz();
 
