@@ -165,7 +165,7 @@ static void usbdfu_getstatus_complete(struct usb_setup_data *req)
 		flash_unlock();
 		if(prog.blocknum == 0) {
 			if ((*(u32*)(prog.buf+1) < 0x8002000) ||
-			    (*(u32*)(prog.buf+1) >= 0x8020000)) {
+			    (*(u32*)(prog.buf+1) >= 0x8040000)) {
 				usbd_ep_stall_set(0, 1);
 				return;
 			}

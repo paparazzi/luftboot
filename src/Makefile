@@ -67,6 +67,6 @@ flash: luftboot
 	@echo "  BMP\t$<"
 	$(Q)$(GDB) --batch \
 		-ex 'target extended-remote $(BMP_PORT)' \
-		-x /Users/esdentem/sat/arm-none-eabi/share/libopencm3/scripts/black_magic_probe_flash.scr \
+		-x ../scripts/black_magic_probe_flash.scr \
 		$<
 endif

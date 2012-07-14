@@ -1,0 +1,12 @@
+monitor version
+monitor swdp_scan
+attach 1
+monitor option erase
+monitor option 0x1FFFF802 0x00FF
+monitor option 0x1FFFF804 0x00FF
+monitor option 0x1FFFF806 0x00FF
+monitor option 0x1FFFF808 0x00FF
+monitor option 0x1FFFF80A 0x00FF
+monitor option 0x1FFFF80C 0x00FF
+monitor option 0x1FFFF80E 0x00FF
+load
