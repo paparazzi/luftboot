@@ -1,0 +1,9 @@
+== v1.1 ==
+
+* Changed VID/PID to Open Moko provided ones.
+* Bootloader is selfprotecting it's flash memory.
+* Fixed issue where the bootloader was only allowing to flash 128kb of flash memory.
+
+== v1.0 ==
+
+Initial release of luftboot
