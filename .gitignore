@@ -4,3 +4,4 @@ mapfile
 *.pyc
 *.o
 *.elf
+src/luftboot
