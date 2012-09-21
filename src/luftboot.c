@@ -26,6 +26,7 @@
 #include <libopencm3/stm32/f1/scb.h>
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/dfu.h>
+#include <libopencm3/stm32/otg_fs.h>
 
 #ifndef VERSION
 #define VERSION         ""
@@ -192,8 +193,26 @@ static void usbdfu_getstatus_complete(struct usb_setup_data *req)
 		return;
 
 	case STATE_DFU_MANIFEST:
-		/* USB device must detach, we just reset... */
-		scb_reset_system();
+
+		/* Trigger a soft disconnect event on the USB line
+		   FIXME make this cleaner/add interface in locm3 */
+		OTG_FS_DCTL |= OTG_FS_DCTL_SDIS;
+
+		/* Now we want to shut down the usb device: disable the clock */
+		rcc_peripheral_disable_clock(&RCC_AHBENR, RCC_AHBENR_OTGFSEN);
+
+		/* Boot the application if it's valid, otherwise reset */
+		if((*(volatile u32*)APP_ADDRESS & 0x2FFE0000) == 0x20000000) {
+			/* Set vector table base address */
+			SCB_VTOR = APP_ADDRESS & 0xFFFF;
+			/* Initialise master stack pointer */
+			asm volatile ("msr msp, %0"::"g"
+					(*(volatile u32*)APP_ADDRESS));
+			/* Jump to application */
+			(*(void(**)())(APP_ADDRESS + 4))();
+		} else {
+			scb_reset_system();
+		}
 		return; /* Will never return */
 	default:
 		return;
@@ -349,20 +368,47 @@ static inline void led_advance(void)
 
 bool gpio_force_bootloader()
 {
+	/* Force the bootloader if the GPIO state was changed to indicate this
+	      in the application (state remains after a core-only reset)
+	   Skip bootloader if the "skip bootloader" pin is grounded
+	   Force bootloader if the USB vbus is powered
+	   Skip bootloader otherwise */
+
 	/* Check if we are being forced by the payload. */
 	if (((GPIO_CRL(GPIOC) & 0x3) == 0x0) &&
 	    ((GPIO_CRL(GPIOC) & 0xC) == 0x8) &&
 	    ((GPIO_IDR(GPIOC) & 0x1) == 0x0)){
 		return true;
 	} else {
-		/* Enable clock for the "force bootloader" pin bank and check for it */
+		/* Enable clock for the "skip bootloader" pin bank and check for it */
 		rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
 		gpio_set_mode(GPIOC, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO0);
 		gpio_set(GPIOC, GPIO0);
 
 		if(!gpio_get(GPIOC, GPIO0)) {
+			/* If pin grounded, disable the pin bank and return */
+			gpio_set_mode(GPIOC, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO0);
+			rcc_peripheral_disable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
+			return false;
+		}
+		/* Disable the pin bank */
+		gpio_set_mode(GPIOC, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO0);
+		rcc_peripheral_disable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
+
+		/* Enable clock for the "USB vbus" pin bank and check for it */
+		rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
+		gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO9);
+		gpio_clear(GPIOA, GPIO9);
+
+		if(gpio_get(GPIOA, GPIO9)) {
+			/* If vbus pin high, disable the pin bank and return */
+			gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO9);
+			rcc_peripheral_disable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
 			return true;
 		}
+		/* Disable the pin bank */
+		gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO9);
+		rcc_peripheral_disable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
 	}
 
 	return false;
