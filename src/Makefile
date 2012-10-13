@@ -3,7 +3,7 @@ CROSS_COMPILE ?= arm-none-eabi-
 # if cross compiler is not in path, try picking it up from the paparazzi package
 HAVE_ARM_NONE_EABI_GCC := $(shell which arm-none-eabi-gcc)
 ifeq ($(strip $(HAVE_ARM_NONE_EABI_GCC)),)
-TOOLCHAIN=$(shell find -L /opt/paparazzi/arm-multilib ~/sat /opt/paparazzi/stm32 -maxdepth 1 -type d -name arm-none-eabi 2>/dev/null | head -n 1)
+TOOLCHAIN=$(shell find -L /opt/paparazzi/arm-multilib ~/sat -maxdepth 1 -type d -name arm-none-eabi 2>/dev/null | head -n 1)
 TOOLCHAIN_DIR=$(shell dirname $(TOOLCHAIN))/bin
 CROSS_COMPILE=$(TOOLCHAIN_DIR)/arm-none-eabi-
 else
@@ -25,7 +25,7 @@ DEV_SERIAL = NSERIAL
 CFLAGS += -Os -g3 -Istm32/include -mcpu=cortex-m3 -mthumb -msoft-float -DSTM32F1 -I$(LIBOPENCM3)/include --function-sections --data-sections -DVERSION="\"$(VERSION)\"" -DDEV_SERIAL="\"$(DEV_SERIAL)\""
 LDFLAGS_BOOT = -lopencm3_stm32f1 -Wl,--defsym,_stack=0x20005000 \
 	-Wl,-T,luftboot.ld -nostartfiles -lc -lnosys -Wl,-Map=mapfile \
-	-mthumb -march=armv7 -mcpu=cortex-m3 -mfix-cortex-m3-ldrd -msoft-float -L$(LIBOPENCM3)/lib/stm32/f1 -Wl,--gc-sections
+	-mthumb -march=armv7 -mcpu=cortex-m3 -mfix-cortex-m3-ldrd -msoft-float -L$(LIBOPENCM3)/lib -Wl,--gc-sections
 LDFLAGS_BOOT += -Wl,--section-start=.devserial=0x8001FF0
 LDFLAGS = $(LDFLAGS_BOOT) -Wl,-Ttext=0x8002000
 
