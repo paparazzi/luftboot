@@ -36,6 +36,10 @@ else
 LDFLAGS_BOOT += -Wl,--print-gc-sections
 endif
 
+ifeq ($(LUFTBOOT_USE_48MHZ_INTERNAL_OSC),1)
+CFLAGS += -DLUFTBOOT_USE_48MHZ_INTERNAL_OSC=1
+endif
+
 all: luftboot.bin luftboot.hex
 
 luftboot: luftboot.o
