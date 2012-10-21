@@ -44,6 +44,8 @@
 
 #define FLASH_OBP_RDP 0x1FFFF800
 #define FLASH_OBP_WRP10 0x1FFFF808
+/* Defines user option register as per Table 5 on Page 55 of RM0008 (STM32 Reference Manual) */
+#define FLASH_OBP_DATA0 0x1FFFF804
 
 #define FLASH_OBP_RDP_KEY 0x5aa5
 
@@ -192,6 +194,16 @@ static void usbdfu_getstatus_complete(struct usb_setup_data *req)
 		return;
 
 	case STATE_DFU_MANIFEST:
+		/* Mark DATA0 register that we have just downloaded the code */
+		if((FLASH_OBR & 0x3FC00) != 0x00) {
+		  flash_unlock();
+		  FLASH_CR = 0;
+		  flash_erase_option_bytes();
+		  flash_program_option_bytes(FLASH_OBP_RDP, 0x5AA5);
+		  flash_program_option_bytes(FLASH_OBP_WRP10, 0x03FC);
+		  flash_program_option_bytes(FLASH_OBP_DATA0, 0xFF00);
+		  flash_lock();
+		}
 		/* USB device must detach, we just reset... */
 		scb_reset_system();
 		return; /* Will never return */
@@ -349,20 +361,47 @@ static inline void led_advance(void)
 
 bool gpio_force_bootloader()
 {
+	/* Force the bootloader if the GPIO state was changed to indicate this
+	      in the application (state remains after a core-only reset)
+	   Skip bootloader if the "skip bootloader" pin is grounded
+	   Force bootloader if the USB vbus is powered
+	   Skip bootloader otherwise */
+
 	/* Check if we are being forced by the payload. */
 	if (((GPIO_CRL(GPIOC) & 0x3) == 0x0) &&
 	    ((GPIO_CRL(GPIOC) & 0xC) == 0x8) &&
 	    ((GPIO_IDR(GPIOC) & 0x1) == 0x0)){
 		return true;
 	} else {
-		/* Enable clock for the "force bootloader" pin bank and check for it */
+		/* Enable clock for the "skip bootloader" pin bank and check for it */
 		rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
 		gpio_set_mode(GPIOC, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO0);
 		gpio_set(GPIOC, GPIO0);
 
 		if(!gpio_get(GPIOC, GPIO0)) {
+			/* If pin grounded, disable the pin bank and return */
+			gpio_set_mode(GPIOC, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO0);
+			rcc_peripheral_disable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
+			return false;
+		}
+		/* Disable the pin bank */
+		gpio_set_mode(GPIOC, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO0);
+		rcc_peripheral_disable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
+
+		/* Enable clock for the "USB vbus" pin bank and check for it */
+		rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
+		gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO9);
+		gpio_clear(GPIOA, GPIO9);
+
+		if(gpio_get(GPIOA, GPIO9)) {
+			/* If vbus pin high, disable the pin bank and return */
+			gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO9);
+			rcc_peripheral_disable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
 			return true;
 		}
+		/* Disable the pin bank */
+		gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO9);
+		rcc_peripheral_disable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
 	}
 
 	return false;
@@ -370,17 +409,29 @@ bool gpio_force_bootloader()
 
 int main(void)
 {
-	if(!gpio_force_bootloader() && 1) {
-		/* Boot the application if it's valid */
-		if((*(volatile u32*)APP_ADDRESS & 0x2FFE0000) == 0x20000000) {
-			/* Set vector table base address */
+	/* Check if the application is valid. */
+	if ((*(volatile u32 *)APP_ADDRESS & 0x2FFE0000) == 0x20000000) {
+		/* Check if we have just downloaded the new code by looking at the DATA0 option register
+		 * or that we do NOT want to force the bootloader */
+		if (((FLASH_OBR & 0x3FC00) == 0x00) || (!gpio_force_bootloader() && 1)) {
+			/* If we DID just download new code, reset that data register */
+			if((FLASH_OBR & 0x3FC00) == 0x00) {
+			    flash_unlock();
+			    FLASH_CR = 0;
+			    flash_erase_option_bytes();
+			    flash_program_option_bytes(FLASH_OBP_RDP, 0x5AA5); 		// Flash read unprotect
+			    flash_program_option_bytes(FLASH_OBP_WRP10, 0x03FC);	// Write protect first 4 flash pages
+			    flash_program_option_bytes(FLASH_OBP_DATA0, 0x00FF); 	// Write data register that we downloaded the code and want to jump the app
+			    flash_lock();
+			}
+			/* Set vector table base address. */
 			SCB_VTOR = APP_ADDRESS & 0xFFFF;
-			/* Initialise master stack pointer */
-			asm volatile ("msr msp, %0"::"g"
-					(*(volatile u32*)APP_ADDRESS));
-			/* Jump to application */
-			(*(void(**)())(APP_ADDRESS + 4))();
-		}
+			/* Initialise master stack pointer. */
+			asm volatile("msr msp, %0"::"g"
+					     (*(volatile u32 *)APP_ADDRESS));
+			/* Jump to application. */
+			(*(void (**)())(APP_ADDRESS + 4))();
+	    }
 	}
 
 	if ((FLASH_WRPR & 0x03) != 0x00) {
@@ -391,7 +442,13 @@ int main(void)
 		flash_program_option_bytes(FLASH_OBP_WRP10, 0x03FC);
 	}
 
+#if LUFTBOOT_USE_48MHZ_INTERNAL_OSC
+#pragma message "Luftboot using 8MHz internal RC oscillator to PLL it to 48MHz."
+	rcc_clock_setup_in_hsi_out_48mhz();
+#else
+#pragma message "Luftboot using 12MHz external clock to PLL it to 72MHz."
 	rcc_clock_setup_in_hse_12mhz_out_72mhz();
+#endif
 
 	rcc_peripheral_enable_clock(&RCC_AHBENR, RCC_AHBENR_OTGFSEN);
 
