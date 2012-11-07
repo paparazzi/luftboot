@@ -19,11 +19,11 @@
  */
 
 #include <string.h>
-#include <libopencm3/stm32/systick.h>
+#include <libopencm3/cm3/systick.h>
 #include <libopencm3/stm32/f1/rcc.h>
 #include <libopencm3/stm32/f1/gpio.h>
 #include <libopencm3/stm32/f1/flash.h>
-#include <libopencm3/stm32/f1/scb.h>
+#include <libopencm3/cm3/scb.h>
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/dfu.h>
 
@@ -156,7 +156,7 @@ static u8 usbdfu_getstatus(u32 *bwPollTimeout)
 	}
 }
 
-static void usbdfu_getstatus_complete(struct usb_setup_data *req)
+static void usbdfu_getstatus_complete(usbd_device *device, struct usb_setup_data *req)
 {
 	int i;
 	(void)req;
@@ -168,7 +168,7 @@ static void usbdfu_getstatus_complete(struct usb_setup_data *req)
 		if(prog.blocknum == 0) {
 			if ((*(u32*)(prog.buf+1) < 0x8002000) ||
 			    (*(u32*)(prog.buf+1) >= 0x8040000)) {
-				usbd_ep_stall_set(0, 1);
+				usbd_ep_stall_set(device, 0, 1);
 				return;
 			}
 			switch(prog.buf[0]) {
@@ -212,8 +212,8 @@ static void usbdfu_getstatus_complete(struct usb_setup_data *req)
 	}
 }
 
-static int usbdfu_control_request(struct usb_setup_data *req, u8 **buf,
-		u16 *len, void (**complete)(struct usb_setup_data *req))
+static int usbdfu_control_request(usbd_device *device, struct usb_setup_data *req, u8 **buf,
+		u16 *len, void (**complete)(usbd_device *device, struct usb_setup_data *req))
 {
 
 	if((req->bmRequestType & 0x7F) != 0x21)
@@ -461,15 +461,15 @@ int main(void)
 
 	get_dev_unique_id(serial_no);
 
-	usbd_init(&stm32f107_usb_driver, &dev, &config, usb_strings);
-	usbd_set_control_buffer_size(sizeof(usbd_control_buffer));
-	usbd_register_control_callback(
+	usbd_device *device = usbd_init(&stm32f107_usb_driver, &dev, &config, usb_strings);
+	usbd_set_control_buffer_size(device, sizeof(usbd_control_buffer));
+	usbd_register_control_callback( device,
 				USB_REQ_TYPE_CLASS | USB_REQ_TYPE_INTERFACE,
 				USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
 				usbdfu_control_request);
 
 	while (1)
-		usbd_poll();
+		usbd_poll(device);
 }
 
 inline char *get_dev_unique_id(char *s)
