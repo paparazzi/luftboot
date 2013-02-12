@@ -1,24 +1,17 @@
-CROSS_COMPILE ?= arm-none-eabi-
+PREFIX ?= arm-none-eabi
 
-# if cross compiler is not in path, try picking it up from the paparazzi package
-HAVE_ARM_NONE_EABI_GCC := $(shell which arm-none-eabi-gcc)
-ifeq ($(strip $(HAVE_ARM_NONE_EABI_GCC)),)
-TOOLCHAIN=$(shell find -L /opt/paparazzi/arm-multilib ~/sat -maxdepth 1 -type d -name arm-none-eabi 2>/dev/null | head -n 1)
-TOOLCHAIN_DIR=$(shell dirname $(TOOLCHAIN))/bin
-CROSS_COMPILE=$(TOOLCHAIN_DIR)/arm-none-eabi-
-else
-TOOLCHAIN_DIR=$(shell dirname `which arm-none-eabi-gcc`)
-endif
+CC = $(PREFIX)-gcc
+OBJCOPY = $(PREIFX)-objcopy
+GDB = $(CROSS_COMPILE)-gdb
 
-CC = $(CROSS_COMPILE)gcc
-OBJCOPY = $(CROSS_COMPILE)objcopy
+LIBOPENCM3 ?= libopencm3
 
-LIBOPENCM3 ?= $(TOOLCHAIN_DIR)/..
+# flashing options
 OOCD_INTERFACE  ?= flossjtag
 OOCD_TARGET     ?= stm32
 OOCD = openocd
-GDB = $(TOOLCHAIN_DIR)/arm-none-eabi-gdb
 BMP_PORT =
+
 VERSION = V1.1
 DEV_SERIAL = NSERIAL
 
