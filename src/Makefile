@@ -1,7 +1,7 @@
 PREFIX ?= arm-none-eabi
 
 CC = $(PREFIX)-gcc
-OBJCOPY = $(PREIFX)-objcopy
+OBJCOPY = $(PREFIX)-objcopy
 GDB = $(CROSS_COMPILE)-gdb
 
 LIBOPENCM3 ?= libopencm3
