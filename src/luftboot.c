@@ -130,7 +130,6 @@ const struct usb_config_descriptor config = {
 static char serial_no[24+8];
 
 static const char *usb_strings[] = {
-	"x",
 	"Transition Robotics Inc.",
 	"Lisa/M (Upgrade) " VERSION,
 	serial_no,
@@ -461,7 +460,7 @@ int main(void)
 
 	get_dev_unique_id(serial_no);
 
-	usbd_device *device = usbd_init(&stm32f107_usb_driver, &dev, &config, usb_strings);
+	usbd_device *device = usbd_init(&stm32f107_usb_driver, &dev, &config, usb_strings, 4);
 	usbd_set_control_buffer_size(device, sizeof(usbd_control_buffer));
 	usbd_register_control_callback( device,
 				USB_REQ_TYPE_CLASS | USB_REQ_TYPE_INTERFACE,
