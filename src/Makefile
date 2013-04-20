@@ -36,17 +36,17 @@ endif
 
 all: luftboot.bin luftboot.hex
 
-luftboot: luftboot.o
+luftboot.elf: luftboot.o
 	$(CC) -o $@ $^ $(LDFLAGS_BOOT)
 
-luftboot.bin: luftboot
+luftboot.bin: luftboot.elf
 	$(OBJCOPY) -O binary $^ $@
 
-luftboot.hex: luftboot
+luftboot.hex: luftboot.elf
 	$(OBJCOPY) -O ihex $^ $@
 
 clean:
-	-rm -rf luftboot.o luftboot luftboot.bin luftboot.hex mapfile
+	-rm -rf luftboot.o luftboot.elf luftboot.bin luftboot.hex mapfile
 
 ifeq ($(BMP_PORT),)
 flash: luftboot.hex
@@ -59,7 +59,7 @@ flash: luftboot.hex
 		-c reset \
 		-c shutdown
 else
-flash: luftboot
+flash: luftboot.elf
 	@echo "Using Black Magic Probe"
 	@echo "Using GDB = $(GDB)"
 	@echo "  BMP\t$<"
