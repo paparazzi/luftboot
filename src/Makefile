@@ -16,10 +16,19 @@ BMP_PORT =
 VERSION = V1.1
 DEV_SERIAL = NSERIAL
 
-CFLAGS += -Os -g3 -Istm32/include -mcpu=cortex-m3 -mthumb -msoft-float -DSTM32F1 -I$(LIBOPENCM3)/include --function-sections --data-sections -DVERSION="\"$(VERSION)\"" -DDEV_SERIAL="\"$(DEV_SERIAL)\""
+# Check if we are using gcc-arm-embedded compiler
+# if so use nano.specs to save space
+ifeq ($(shell arm-none-eabi-gcc -specs=nano.specs 2>&1 | grep nano.specs),)
+$(info Using gcc-arm-embedded, nano specs enabled!!!)
+SPECS = -specs=nano.specs
+else
+$(info Not using gcc-arm-embedded, nano specs disabled!!!)
+endif
+
+CFLAGS += -Os -g3 -Istm32/include -mcpu=cortex-m3 -mthumb -msoft-float -DSTM32F1 --function-sections --data-sections -DVERSION="\"$(VERSION)\"" -DDEV_SERIAL="\"$(DEV_SERIAL)\""
 LDFLAGS_BOOT = -lopencm3_stm32f1 -Wl,--defsym,_stack=0x20005000 \
-	-Wl,-T,luftboot.ld -nostartfiles -lc -lnosys -Wl,-Map=mapfile \
-	-mthumb -march=armv7 -mcpu=cortex-m3 -mfix-cortex-m3-ldrd -msoft-float -L$(LIBOPENCM3)/lib -Wl,--gc-sections
+	-Wl,-T,luftboot.ld $(SPECS) -nostartfiles -lc -lnosys -Wl,-Map=mapfile \
+	-mthumb -mcpu=cortex-m3 -mfix-cortex-m3-ldrd -msoft-float -Wl,--gc-sections
 LDFLAGS_BOOT += -Wl,--section-start=.devserial=0x8001FF0
 LDFLAGS = $(LDFLAGS_BOOT) -Wl,-Ttext=0x8002000
 
@@ -36,17 +45,17 @@ endif
 
 all: luftboot.bin luftboot.hex
 
-luftboot: luftboot.o
-	$(CC) $^ -o $@ $(LDFLAGS_BOOT)
+luftboot.elf: luftboot.o
+	$(CC) -o $@ $^ $(LDFLAGS_BOOT)
 
-luftboot.bin: luftboot
+luftboot.bin: luftboot.elf
 	$(OBJCOPY) -O binary $^ $@
 
-luftboot.hex: luftboot
+luftboot.hex: luftboot.elf
 	$(OBJCOPY) -O ihex $^ $@
 
 clean:
-	-rm -rf luftboot.o luftboot luftboot.bin luftboot.hex mapfile
+	-rm -rf luftboot.o luftboot.elf luftboot.bin luftboot.hex mapfile
 
 ifeq ($(BMP_PORT),)
 flash: luftboot.hex
@@ -59,7 +68,7 @@ flash: luftboot.hex
 		-c reset \
 		-c shutdown
 else
-flash: luftboot
+flash: luftboot.elf
 	@echo "Using Black Magic Probe"
 	@echo "Using GDB = $(GDB)"
 	@echo "  BMP\t$<"
