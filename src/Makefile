@@ -18,7 +18,7 @@ DEV_SERIAL = NSERIAL
 
 # Check if we are using gcc-arm-embedded compiler
 # if so use nano.specs to save space
-ifeq ($(shell arm-none-eabi-gcc -specs=nano.specs 2>&1 | grep nano.specs),)
+ifeq ($(shell $(CC) -specs=nano.specs 2>&1 | grep nano.specs),)
 $(info Using gcc-arm-embedded, nano specs enabled!!!)
 SPECS = -specs=nano.specs
 else
