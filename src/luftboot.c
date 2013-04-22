@@ -498,9 +498,3 @@ void sys_tick_handler()
 	led_advance();
 }
 
-/* Stub for the function called at the end of the program. It is not available
- * when running specs.nano.
- */
-void _fini()
-{
-}
