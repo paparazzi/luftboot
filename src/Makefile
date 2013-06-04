@@ -19,10 +19,14 @@ DEV_SERIAL = NSERIAL
 # Check if we are using gcc-arm-embedded compiler
 # if so use nano.specs to save space
 ifeq ($(shell $(CC) -specs=nano.specs 2>&1 | grep nano.specs),)
+ifeq ($(V),1)
 $(info Using gcc-arm-embedded, nano specs enabled!!!)
+endif
 SPECS = -specs=nano.specs
 else
+ifeq ($(V),1)
 $(info Not using gcc-arm-embedded, nano specs disabled!!!)
+endif
 endif
 
 CFLAGS += -Os -g3 -Istm32/include -mcpu=cortex-m3 -mthumb -msoft-float -DSTM32F1 \
@@ -49,16 +53,24 @@ endif
 all: luftboot.bin luftboot.hex
 
 luftboot.elf: luftboot.o
-	$(CC) -o $@ $^ $(LDFLAGS_BOOT)
+	@echo "  CC      luftboot.elf"
+	$(Q)$(CC) -o $@ $^ $(LDFLAGS_BOOT)
 
 luftboot.bin: luftboot.elf
-	$(OBJCOPY) -O binary $^ $@
+	@echo "  create  luftboot.bin"
+	$(Q)$(Q)$(OBJCOPY) -O binary $^ $@
 
 luftboot.hex: luftboot.elf
-	$(OBJCOPY) -O ihex $^ $@
+	@echo "  create  luftboot.hex"
+	$(Q)$(OBJCOPY) -O ihex $^ $@
+
+%.o: %.c
+	@printf "  CC      $(<F)\n"
+	$(Q)$(CC) $(CFLAGS) -o $@ -c $<
 
 clean:
-	-rm -rf luftboot.o luftboot.elf luftboot.bin luftboot.hex mapfile
+	@echo "  CLEAN   luftboot"
+	$(Q)-rm -rf luftboot.o luftboot.elf luftboot.bin luftboot.hex mapfile
 
 ifeq ($(BMP_PORT),)
 flash: luftboot.hex
