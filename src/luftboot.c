@@ -18,6 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdint.h>
 #include <string.h>
 #include <libopencm3/cm3/systick.h>
 #include <libopencm3/stm32/f1/rcc.h>
@@ -44,25 +45,28 @@
 
 #define FLASH_OBP_RDP 0x1FFFF800
 #define FLASH_OBP_WRP10 0x1FFFF808
-/* Defines user option register as per Table 5 on Page 55 of RM0008 (STM32 Reference Manual) */
+/* Defines user option register as per Table 5 on Page 55 of RM0008 (STM32
+ * Reference Manual)
+ */
 #define FLASH_OBP_DATA0 0x1FFFF804
 
 #define FLASH_OBP_RDP_KEY 0x5aa5
 
-static const char dev_serial[] __attribute__ ((section (".devserial"))) = DEV_SERIAL;
+static const char 
+dev_serial[] __attribute__((section (".devserial"))) = DEV_SERIAL;
 
 /* We need a special large control buffer for this device: */
-u8 usbd_control_buffer[SECTOR_SIZE];
+uint8_t usbd_control_buffer[SECTOR_SIZE];
 
 static enum dfu_state usbdfu_state = STATE_DFU_IDLE;
 
 inline char *get_dev_unique_id(char *serial_no);
 
 static struct {
-	u8 buf[sizeof(usbd_control_buffer)];
-	u16 len;
-	u32 addr;
-	u16 blocknum;
+	uint8_t buf[sizeof(usbd_control_buffer)];
+	uint16_t len;
+	uint32_t addr;
+	uint16_t blocknum;
 } prog;
 
 const struct usb_device_descriptor dev = {
@@ -137,7 +141,7 @@ static const char *usb_strings[] = {
 	"@Internal Flash   /0x08000000/4*002Ka,124*002Kg"
 };
 
-static u8 usbdfu_getstatus(u32 *bwPollTimeout)
+static uint8_t usbdfu_getstatus(uint32_t *bwPollTimeout)
 {
 	switch(usbdfu_state) {
 	case STATE_DFU_DNLOAD_SYNC:
@@ -155,7 +159,8 @@ static u8 usbdfu_getstatus(u32 *bwPollTimeout)
 	}
 }
 
-static void usbdfu_getstatus_complete(usbd_device *device, struct usb_setup_data *req)
+static void usbdfu_getstatus_complete(usbd_device *device,
+				      struct usb_setup_data *req)
 {
 	int i;
 	(void)req;
@@ -165,24 +170,24 @@ static void usbdfu_getstatus_complete(usbd_device *device, struct usb_setup_data
 
 		flash_unlock();
 		if(prog.blocknum == 0) {
-			if ((*(u32*)(prog.buf+1) < 0x8002000) ||
-			    (*(u32*)(prog.buf+1) >= 0x8040000)) {
+			if ((*(uint32_t*)(prog.buf+1) < 0x8002000) ||
+			    (*(uint32_t*)(prog.buf+1) >= 0x8040000)) {
 				usbd_ep_stall_set(device, 0, 1);
 				return;
 			}
 			switch(prog.buf[0]) {
 			case CMD_ERASE:
-				flash_erase_page(*(u32*)(prog.buf+1));
+				flash_erase_page(*(uint32_t*)(prog.buf+1));
 			case CMD_SETADDR:
-				prog.addr = *(u32*)(prog.buf+1);
+				prog.addr = *(uint32_t*)(prog.buf+1);
 			}
 		} else {
-			u32 baseaddr = prog.addr +
+			uint32_t baseaddr = prog.addr +
 				((prog.blocknum - 2) *
 					dfu_function.wTransferSize);
 			for(i = 0; i < prog.len; i += 2)
 				flash_program_half_word(baseaddr + i,
-						*(u16*)(prog.buf+i));
+						*(uint16_t*)(prog.buf+i));
 		}
 		flash_lock();
 
@@ -211,8 +216,11 @@ static void usbdfu_getstatus_complete(usbd_device *device, struct usb_setup_data
 	}
 }
 
-static int usbdfu_control_request(usbd_device *device, struct usb_setup_data *req, u8 **buf,
-		u16 *len, void (**complete)(usbd_device *device, struct usb_setup_data *req))
+static int usbdfu_control_request(usbd_device *device,
+				  struct usb_setup_data *req, uint8_t **buf,
+				  uint16_t *len,
+				  void (**complete)(usbd_device *device,
+						struct usb_setup_data *req))
 {
 
 	if((req->bmRequestType & 0x7F) != 0x21)
@@ -244,7 +252,8 @@ static int usbdfu_control_request(usbd_device *device, struct usb_setup_data *re
 		/* Upload not supported for now */
 		return 0;
 	case DFU_GETSTATUS: {
-		u32 bwPollTimeout = 0; /* 24-bit integer in DFU class spec */
+		uint32_t bwPollTimeout = 0; /* 24-bit integer in DFU class spec
+					     */
 
 		(*buf)[0] = usbdfu_getstatus(&bwPollTimeout);
 		(*buf)[1] = bwPollTimeout & 0xFF;
@@ -372,34 +381,44 @@ bool gpio_force_bootloader()
 	    ((GPIO_IDR(GPIOC) & 0x1) == 0x0)){
 		return true;
 	} else {
-		/* Enable clock for the "skip bootloader" pin bank and check for it */
+		/* Enable clock for the "skip bootloader" pin bank and check
+		 * for it
+		 */
 		rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
-		gpio_set_mode(GPIOC, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO0);
+		gpio_set_mode(GPIOC, GPIO_MODE_INPUT,
+			      GPIO_CNF_INPUT_PULL_UPDOWN, GPIO0);
 		gpio_set(GPIOC, GPIO0);
 
 		if(!gpio_get(GPIOC, GPIO0)) {
 			/* If pin grounded, disable the pin bank and return */
-			gpio_set_mode(GPIOC, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO0);
-			rcc_peripheral_disable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
+			gpio_set_mode(GPIOC, GPIO_MODE_INPUT,
+				      GPIO_CNF_INPUT_FLOAT, GPIO0);
+			rcc_peripheral_disable_clock(&RCC_APB2ENR,
+						     RCC_APB2ENR_IOPCEN);
 			return false;
 		}
 		/* Disable the pin bank */
-		gpio_set_mode(GPIOC, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO0);
+		gpio_set_mode(GPIOC, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT,
+			      GPIO0);
 		rcc_peripheral_disable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
 
 		/* Enable clock for the "USB vbus" pin bank and check for it */
 		rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
-		gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO9);
+		gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
+			      GPIO_CNF_INPUT_PULL_UPDOWN, GPIO9);
 		gpio_clear(GPIOA, GPIO9);
 
 		if(gpio_get(GPIOA, GPIO9)) {
 			/* If vbus pin high, disable the pin bank and return */
-			gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO9);
-			rcc_peripheral_disable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
+			gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
+				      GPIO_CNF_INPUT_FLOAT, GPIO9);
+			rcc_peripheral_disable_clock(&RCC_APB2ENR,
+						     RCC_APB2ENR_IOPAEN);
 			return true;
 		}
 		/* Disable the pin bank */
-		gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO9);
+		gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT,
+			      GPIO9);
 		rcc_peripheral_disable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
 	}
 
@@ -409,25 +428,36 @@ bool gpio_force_bootloader()
 int main(void)
 {
 	/* Check if the application is valid. */
-	if ((*(volatile u32 *)APP_ADDRESS & 0x2FFE0000) == 0x20000000) {
-		/* Check if we have just downloaded the new code by looking at the DATA0 option register
-		 * or that we do NOT want to force the bootloader */
-		if (((FLASH_OBR & 0x3FC00) == 0x00) || (!gpio_force_bootloader() && 1)) {
-			/* If we DID just download new code, reset that data register */
+	if ((*(volatile uint32_t *)APP_ADDRESS & 0x2FFE0000) == 0x20000000) {
+		/* Check if we have just downloaded the new code by looking at
+		 * the DATA0 option register or that we do NOT want to force
+		 * the bootloader
+		 */
+		if (((FLASH_OBR & 0x3FC00) == 0x00) ||
+		    (!gpio_force_bootloader() && 1)) {
+			/* If we DID just download new code, reset that data
+			 * register
+			 */
 			if((FLASH_OBR & 0x3FC00) == 0x00) {
 			    flash_unlock();
 			    FLASH_CR = 0;
 			    flash_erase_option_bytes();
-			    flash_program_option_bytes(FLASH_OBP_RDP, 0x5AA5); 		// Flash read unprotect
-			    flash_program_option_bytes(FLASH_OBP_WRP10, 0x03FC);	// Write protect first 4 flash pages
-			    flash_program_option_bytes(FLASH_OBP_DATA0, 0x00FF); 	// Write data register that we downloaded the code and want to jump the app
+			    /* Flash read unprotect */
+			    flash_program_option_bytes(FLASH_OBP_RDP, 0x5AA5);
+			    /* Write protect first 4 flash pages */
+			    flash_program_option_bytes(FLASH_OBP_WRP10, 0x03FC);
+			    /* Write data register that we downloaded the code
+			     * and want to jump the app
+			     */
+			    flash_program_option_bytes(FLASH_OBP_DATA0,
+						       0x00FF); 	
 			    flash_lock();
 			}
 			/* Set vector table base address. */
 			SCB_VTOR = APP_ADDRESS & 0xFFFF;
 			/* Initialise master stack pointer. */
 			asm volatile("msr msp, %0"::"g"
-					     (*(volatile u32 *)APP_ADDRESS));
+				     (*(volatile uint32_t *)APP_ADDRESS));
 			/* Jump to application. */
 			(*(void (**)())(APP_ADDRESS + 4))();
 	    }
@@ -461,8 +491,8 @@ int main(void)
 	get_dev_unique_id(serial_no);
 
 	usbd_device *device = usbd_init(&stm32f107_usb_driver, &dev, &config,
-									usb_strings, 4, usbd_control_buffer,
-									sizeof(usbd_control_buffer));
+					usb_strings, 4, usbd_control_buffer,
+					sizeof(usbd_control_buffer));
 	usbd_register_control_callback( device,
 				USB_REQ_TYPE_CLASS | USB_REQ_TYPE_INTERFACE,
 				USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
