@@ -483,7 +483,7 @@ int main(void)
 
 	gpio_init();
 
-	systick_set_clocksource(STK_CTRL_CLKSOURCE_AHB_DIV8);
+	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB_DIV8);
 	systick_set_reload(900000);
 	systick_interrupt_enable();
 	systick_counter_enable();
