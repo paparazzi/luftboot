@@ -27,6 +27,7 @@
 #include <libopencm3/cm3/scb.h>
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/dfu.h>
+#include <libopencm3/stm32/desig.h>
 
 #ifndef VERSION
 #define VERSION         ""
@@ -59,8 +60,6 @@ dev_serial[] __attribute__((section (".devserial"))) = DEV_SERIAL;
 uint8_t usbd_control_buffer[SECTOR_SIZE];
 
 static enum dfu_state usbdfu_state = STATE_DFU_IDLE;
-
-inline char *get_dev_unique_id(char *serial_no);
 
 static struct {
 	uint8_t buf[sizeof(usbd_control_buffer)];
@@ -131,7 +130,12 @@ const struct usb_config_descriptor config = {
 	.interface = ifaces,
 };
 
-static char serial_no[24+8];
+/** contains DEV_SERIAL and unique chip ID.
+ * chars: 7 (serial) + 1 (space) + 24 (id) + '\0'
+ */
+static char serial_no[7+1+24+1];
+
+static inline char *get_serial_string(char *s);
 
 static const char *usb_strings[] = {
 	"Transition Robotics Inc.",
@@ -487,7 +491,8 @@ int main(void)
 	systick_interrupt_enable();
 	systick_counter_enable();
 
-	get_dev_unique_id(serial_no);
+	/* Get serial number */
+	get_serial_string(serial_no);
 
 	usbd_device *device = usbd_init(&stm32f107_usb_driver, &dev, &config,
 					usb_strings, 4, usbd_control_buffer,
@@ -501,24 +506,17 @@ int main(void)
 		usbd_poll(device);
 }
 
-inline char *get_dev_unique_id(char *s)
+/** get serial number as combination of DEV_SERIAL and unique chip ID.
+ * first 7 chars are DEV_SERIAL, space, then 24 chars unique chip ID.
+ */
+static inline char *get_serial_string(char *s)
 {
-	volatile uint8_t *unique_id = (volatile uint8_t *)0x1FFFF7E8;
 	int i;
-
 	for(i = 0; i < 7; i++) {
 		s[i] = dev_serial[i];
 	}
 	s[i] = ' ';
-
-	/* Fetch serial number from chip's unique ID */
-	for(i = 0; i < 24; i+=2) {
-		s[i+8] = ((*unique_id >> 4) & 0xF) + '0';
-		s[i+8+1] = (*unique_id++ & 0xF) + '0';
-	}
-	for(i = 0; i < 24; i++)
-		if(s[i+8] > '9')
-			s[i+8] += 'A' - '9' - 1;
+	desig_get_unique_id_as_string(&s[8], 25);
 
 	return s;
 }
