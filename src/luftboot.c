@@ -52,7 +52,7 @@
 
 #define FLASH_OBP_RDP_KEY 0x5aa5
 
-static const char 
+static const char
 dev_serial[] __attribute__((section (".devserial"))) = DEV_SERIAL;
 
 /* We need a special large control buffer for this device: */
@@ -160,7 +160,7 @@ static uint8_t usbdfu_getstatus(uint32_t *bwPollTimeout)
 }
 
 static void usbdfu_getstatus_complete(usbd_device *device,
-				      struct usb_setup_data *req)
+					  struct usb_setup_data *req)
 {
 	int i;
 	(void)req;
@@ -171,7 +171,7 @@ static void usbdfu_getstatus_complete(usbd_device *device,
 		flash_unlock();
 		if(prog.blocknum == 0) {
 			if ((*(uint32_t*)(prog.buf+1) < 0x8002000) ||
-			    (*(uint32_t*)(prog.buf+1) >= 0x8040000)) {
+				(*(uint32_t*)(prog.buf+1) >= 0x8040000)) {
 				usbd_ep_stall_set(device, 0, 1);
 				return;
 			}
@@ -253,7 +253,7 @@ static int usbdfu_control_request(usbd_device *device,
 		return 0;
 	case DFU_GETSTATUS: {
 		uint32_t bwPollTimeout = 0; /* 24-bit integer in DFU class spec
-					     */
+						 */
 
 		(*buf)[0] = usbdfu_getstatus(&bwPollTimeout);
 		(*buf)[1] = bwPollTimeout & 0xFF;
@@ -280,26 +280,27 @@ static int usbdfu_control_request(usbd_device *device,
 static inline void gpio_init(void)
 {
 	/* Enable GPIOA, GPIOB, GPIOC, and AFIO clocks. */
-	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN |
-						  RCC_APB2ENR_IOPBEN |
-						  RCC_APB2ENR_IOPCEN |
-						  RCC_APB2ENR_AFIOEN);
+	rcc_periph_clock_enable(RCC_GPIOA);
+	rcc_periph_clock_enable(RCC_GPIOB);
+	rcc_periph_clock_enable(RCC_GPIOC);
+	rcc_periph_clock_enable(RCC_AFIO);
+
 	/* LED1 */
 	/* Set GPIO8 (in GPIO port A) to 'output push-pull'. */
 	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
-			GPIO_CNF_OUTPUT_PUSHPULL, GPIO8);
+				  GPIO_CNF_OUTPUT_PUSHPULL, GPIO8);
 
 	/* JTAG_TRST */
 	/* Set GPIO4 (in GPIO port B) to 'output push-pull'. */
 	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ,
-			GPIO_CNF_OUTPUT_PUSHPULL, GPIO4);
+				  GPIO_CNF_OUTPUT_PUSHPULL, GPIO4);
 
 	AFIO_MAPR |= AFIO_MAPR_SWJ_CFG_FULL_SWJ_NO_JNTRST;
 
 	/* LED2, ADC4, ADC6 */
 	/* Set GPIO15, GPIO5, GPIO2 (in GPIO port C) to 'output push-pull'. */
 	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_50_MHZ,
-			GPIO_CNF_OUTPUT_PUSHPULL, GPIO15 | GPIO5 | GPIO2);
+				  GPIO_CNF_OUTPUT_PUSHPULL, GPIO15 | GPIO5 | GPIO2);
 
 	/* Preconfigure the LEDs. */
 	gpio_set(GPIOA, GPIO8);
@@ -370,56 +371,54 @@ static inline void led_advance(void)
 bool gpio_force_bootloader()
 {
 	/* Force the bootloader if the GPIO state was changed to indicate this
-	      in the application (state remains after a core-only reset)
+		  in the application (state remains after a core-only reset)
 	   Skip bootloader if the "skip bootloader" pin is grounded
 	   Force bootloader if the USB vbus is powered
 	   Skip bootloader otherwise */
 
 	/* Check if we are being forced by the payload. */
 	if (((GPIO_CRL(GPIOC) & 0x3) == 0x0) &&
-	    ((GPIO_CRL(GPIOC) & 0xC) == 0x8) &&
-	    ((GPIO_IDR(GPIOC) & 0x1) == 0x0)){
+		((GPIO_CRL(GPIOC) & 0xC) == 0x8) &&
+		((GPIO_IDR(GPIOC) & 0x1) == 0x0)){
 		return true;
 	} else {
 		/* Enable clock for the "skip bootloader" pin bank and check
 		 * for it
 		 */
-		rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
+		rcc_periph_clock_enable(RCC_GPIOC);
 		gpio_set_mode(GPIOC, GPIO_MODE_INPUT,
-			      GPIO_CNF_INPUT_PULL_UPDOWN, GPIO0);
+					  GPIO_CNF_INPUT_PULL_UPDOWN, GPIO0);
 		gpio_set(GPIOC, GPIO0);
 
-		if(!gpio_get(GPIOC, GPIO0)) {
+		if (!gpio_get(GPIOC, GPIO0)) {
 			/* If pin grounded, disable the pin bank and return */
 			gpio_set_mode(GPIOC, GPIO_MODE_INPUT,
-				      GPIO_CNF_INPUT_FLOAT, GPIO0);
-			rcc_peripheral_disable_clock(&RCC_APB2ENR,
-						     RCC_APB2ENR_IOPCEN);
+						  GPIO_CNF_INPUT_FLOAT, GPIO0);
+			rcc_periph_clock_disable(RCC_GPIOC);
 			return false;
 		}
 		/* Disable the pin bank */
 		gpio_set_mode(GPIOC, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT,
-			      GPIO0);
-		rcc_peripheral_disable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
+					  GPIO0);
+		rcc_periph_clock_disable(RCC_GPIOC);
 
 		/* Enable clock for the "USB vbus" pin bank and check for it */
-		rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
+		rcc_periph_clock_enable(RCC_GPIOA);
 		gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
-			      GPIO_CNF_INPUT_PULL_UPDOWN, GPIO9);
+					  GPIO_CNF_INPUT_PULL_UPDOWN, GPIO9);
 		gpio_clear(GPIOA, GPIO9);
 
-		if(gpio_get(GPIOA, GPIO9)) {
+		if (gpio_get(GPIOA, GPIO9)) {
 			/* If vbus pin high, disable the pin bank and return */
 			gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
-				      GPIO_CNF_INPUT_FLOAT, GPIO9);
-			rcc_peripheral_disable_clock(&RCC_APB2ENR,
-						     RCC_APB2ENR_IOPAEN);
+						  GPIO_CNF_INPUT_FLOAT, GPIO9);
+			rcc_periph_clock_disable(RCC_GPIOA);
 			return true;
 		}
 		/* Disable the pin bank */
 		gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT,
-			      GPIO9);
-		rcc_peripheral_disable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
+					  GPIO9);
+		rcc_periph_clock_disable(RCC_GPIOA);
 	}
 
 	return false;
@@ -434,33 +433,33 @@ int main(void)
 		 * the bootloader
 		 */
 		if (((FLASH_OBR & 0x3FC00) == 0x00) ||
-		    (!gpio_force_bootloader() && 1)) {
+			(!gpio_force_bootloader() && 1)) {
 			/* If we DID just download new code, reset that data
 			 * register
 			 */
 			if((FLASH_OBR & 0x3FC00) == 0x00) {
-			    flash_unlock();
-			    FLASH_CR = 0;
-			    flash_erase_option_bytes();
-			    /* Flash read unprotect */
-			    flash_program_option_bytes(FLASH_OBP_RDP, 0x5AA5);
-			    /* Write protect first 4 flash pages */
-			    flash_program_option_bytes(FLASH_OBP_WRP10, 0x03FC);
-			    /* Write data register that we downloaded the code
-			     * and want to jump the app
-			     */
-			    flash_program_option_bytes(FLASH_OBP_DATA0,
-						       0x00FF); 	
-			    flash_lock();
+				flash_unlock();
+				FLASH_CR = 0;
+				flash_erase_option_bytes();
+				/* Flash read unprotect */
+				flash_program_option_bytes(FLASH_OBP_RDP, 0x5AA5);
+				/* Write protect first 4 flash pages */
+				flash_program_option_bytes(FLASH_OBP_WRP10, 0x03FC);
+				/* Write data register that we downloaded the code
+				 * and want to jump the app
+				 */
+				flash_program_option_bytes(FLASH_OBP_DATA0,
+							   0x00FF);
+				flash_lock();
 			}
 			/* Set vector table base address. */
 			SCB_VTOR = APP_ADDRESS & 0xFFFF;
 			/* Initialise master stack pointer. */
 			asm volatile("msr msp, %0"::"g"
-				     (*(volatile uint32_t *)APP_ADDRESS));
+					 (*(volatile uint32_t *)APP_ADDRESS));
 			/* Jump to application. */
 			(*(void (**)())(APP_ADDRESS + 4))();
-	    }
+		}
 	}
 
 	if ((FLASH_WRPR & 0x03) != 0x00) {
@@ -479,7 +478,7 @@ int main(void)
 	rcc_clock_setup_in_hse_12mhz_out_72mhz();
 #endif
 
-	rcc_peripheral_enable_clock(&RCC_AHBENR, RCC_AHBENR_OTGFSEN);
+	rcc_periph_clock_enable(RCC_OTGFS);
 
 	gpio_init();
 
@@ -528,4 +527,3 @@ void sys_tick_handler()
 {
 	led_advance();
 }
-
