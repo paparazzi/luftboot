@@ -29,15 +29,14 @@ $(info Not using gcc-arm-embedded, nano specs disabled!!!)
 endif
 endif
 
-CFLAGS += -Os -g3 -Istm32/include -mcpu=cortex-m3 -mthumb -msoft-float -DSTM32F1 \
+CFLAGS += -Os -g3 -Istm32/include -mcpu=cortex-m4 -mthumb -msoft-float -DSTM32F4 \
 	-I$(LIBOPENCM3)/include --function-sections --data-sections \
 	-DVERSION="\"$(VERSION)\"" -DDEV_SERIAL="\"$(DEV_SERIAL)\""
-LDFLAGS_BOOT = -lopencm3_stm32f1 -Wl,--defsym,_stack=0x20005000 \
-	-Wl,-T,luftboot.ld $(SPECS) -nostartfiles -lc -lnosys -Wl,-Map=mapfile \
-	-mthumb -mcpu=cortex-m3 -mfix-cortex-m3-ldrd -msoft-float -L$(LIBOPENCM3)/lib \
+LDFLAGS_BOOT = -lopencm3_stm32f4 \
+	-Wl,-T,luftboot.ld $(SPECS) -nostartfiles -lc -lnosys \
+	-mthumb -mcpu=cortex-m4 -msoft-float -L$(LIBOPENCM3)/lib \
 	-Wl,--gc-sections
-LDFLAGS_BOOT += -Wl,--section-start=.devserial=0x8001FF0
-LDFLAGS = $(LDFLAGS_BOOT) -Wl,-Ttext=0x8002000
+LDFLAGS = $(LDFLAGS_BOOT) -Wl,-Ttext=0x8004000
 
 ifneq ($(V),1)
 Q := @
@@ -92,3 +91,4 @@ flash: luftboot.elf
 		-x ../scripts/black_magic_probe_flash.scr \
 		$<
 endif
+
