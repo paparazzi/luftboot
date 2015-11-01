@@ -37,3 +37,13 @@ to the payload or to initiate the bootloader:
  * If the ADC2 pin on Lisa/M is grounded, jump to payload (i.e. "skip bootloader" jumper)
  * If voltage is present on the USB vbus, start the bootloader
  * Otherwise, jump to payload
+ 
+Notes
+-----
+
+Big bootloader 
+
+If the bootloader ever gets bigger than 0xFFFF in the main() of sourcecode there is a set vector table base address.
+ '''SCB_VTOR = APP_ADDRESS & 0xFFFF;'''
+
+This only will work if the bootloader reserved space is less than 0xFFFF, i.e. the app address is less than 0xFFFF. This utilizes the aliased memory location of the application vector table, but it seems to work just fine using the unaliased address, i.e. just APP_ADDRESS directly.
