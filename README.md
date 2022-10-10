@@ -17,7 +17,7 @@ Call 'make' inside the src directory.
 Luftboot needs libopencm3 and an appropriate arm-none-eabi gcc cross compiler.
 If you don't have these in your PATH, specify them with e.g.
 
-    make LIBOPENCM3=path/to/libopencm3 PREFIX=path/to/bin/arm-none-eabi
+    make LIBOPENCM3=path/to/libopencm3 PREFIX=path/to/bin/arm-none-eabi-
 
 By default, Luftboot uses a 12MHz external clock to PLL it to 72MHz. If no external
 clock is available, or for any other reason, one can build Luftboot to use the 8MHz
