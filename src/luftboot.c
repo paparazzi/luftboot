@@ -220,7 +220,7 @@ static void usbdfu_getstatus_complete(usbd_device *device,
 	}
 }
 
-static int usbdfu_control_request(usbd_device *device,
+static enum usbd_request_return_codes usbdfu_control_request(usbd_device *device,
 				  struct usb_setup_data *req, uint8_t **buf,
 				  uint16_t *len,
 				  void (**complete)(usbd_device *device,
@@ -228,33 +228,33 @@ static int usbdfu_control_request(usbd_device *device,
 {
 
 	if((req->bmRequestType & 0x7F) != 0x21)
-		return 0; /* Only accept class request */
+		return USBD_REQ_NOTSUPP; /* Only accept class request */
 
 	switch(req->bRequest) {
 	case DFU_DNLOAD:
 		if((len == NULL) || (*len == 0)) {
 			usbdfu_state = STATE_DFU_MANIFEST_SYNC;
-			return 1;
+			return USBD_REQ_HANDLED;
 		} else {
 			/* Copy download data for use on GET_STATUS */
 			prog.blocknum = req->wValue;
 			prog.len = *len;
 			memcpy(prog.buf, *buf, *len);
 			usbdfu_state = STATE_DFU_DNLOAD_SYNC;
-			return 1;
+			return USBD_REQ_HANDLED;
 		}
 	case DFU_CLRSTATUS:
 		/* Clear error and return to dfuIDLE */
 		if(usbdfu_state == STATE_DFU_ERROR)
 			usbdfu_state = STATE_DFU_IDLE;
-		return 1;
+		return USBD_REQ_HANDLED;
 	case DFU_ABORT:
 		/* Abort returns to dfuIDLE state */
 		usbdfu_state = STATE_DFU_IDLE;
-		return 1;
+		return USBD_REQ_HANDLED;
 	case DFU_UPLOAD:
 		/* Upload not supported for now */
-		return 0;
+		return USBD_REQ_NOTSUPP;
 	case DFU_GETSTATUS: {
 		uint32_t bwPollTimeout = 0; /* 24-bit integer in DFU class spec
 						 */
@@ -269,16 +269,16 @@ static int usbdfu_control_request(usbd_device *device,
 
 		*complete = usbdfu_getstatus_complete;
 
-		return 1;
+		return USBD_REQ_HANDLED;
 		}
 	case DFU_GETSTATE:
 		/* Return state with no state transision */
 		*buf[0] = usbdfu_state;
 		*len = 1;
-		return 1;
+		return USBD_REQ_HANDLED;
 	}
 
-	return 0;
+	return USBD_REQ_NOTSUPP;
 }
 
 static inline void gpio_init(void)
@@ -479,7 +479,7 @@ int main(void)
 	rcc_clock_setup_in_hsi_out_48mhz();
 #else
 #pragma message "Luftboot using 12MHz external clock to PLL it to 72MHz."
-	rcc_clock_setup_in_hse_12mhz_out_72mhz();
+	rcc_clock_setup_pll(&rcc_hse_configs[RCC_CLOCK_HSE12_72MHZ]);
 #endif
 
 	rcc_periph_clock_enable(RCC_OTGFS);
