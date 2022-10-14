@@ -1,9 +1,9 @@
-PREFIX ?= arm-none-eabi
+PREFIX ?= arm-none-eabi-
 
-CC = $(PREFIX)-gcc
-OBJCOPY = $(PREFIX)-objcopy
+CC = $(PREFIX)gcc
+OBJCOPY = $(PREFIX)objcopy
 
-GDB?=$(PREFIX)-gdb
+GDB?=$(PREFIX)gdb
 
 LIBOPENCM3 ?= libopencm3
 
